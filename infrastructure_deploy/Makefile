@@ -89,3 +89,34 @@ monitoring-tf:
 ingress-rules:
 	@echo "[*] Configuring ingress redirection rules..."
 	@../monitoring/configure_ingress.sh $(shell terraform output -raw k8s_master_public_ip)
+
+
+#######################################
+# Atlantis Deployment
+#######################################
+
+atlantis-tfvars:
+	@k8s_master_public_ip=$$(terraform output -raw k8s_master_public_ip); \
+	random_token=$$(openssl rand -hex 20); \
+	random_secret=$$(openssl rand -hex 16); \
+	cat > ../atlantis/terraform.tfvars <<EOF
+# === Auto-generated Atlantis Terraform vars ===
+k8s_master_public_ip = "$$k8s_master_public_ip"
+
+# --- Fill these in manually once ---
+github_user    = "CHANGE_ME"        # e.g. my-github-user
+github_repo    = "CHANGE_ME/*"      # e.g. myorg/* or myorg/repo
+
+# --- Auto-generated secure placeholders ---
+github_token   = "$$random_token"   # replace with real GitHub PAT
+webhook_secret = "$$random_secret"  # replace with real webhook secret
+domain         = "$$k8s_master_public_ip.nip.io"
+EOF
+	echo "[+] terraform.tfvars created in ../atlantis with IP=$$k8s_master_public_ip"
+
+atlantis-tf:
+	@echo "[*] Инициализация и применение Terraform для Atlantis..."
+	@cd ../atlantis && \
+	terraform init && \
+	terraform apply -auto-approve
+	@echo "[+] Atlantis развернут через Terraform"

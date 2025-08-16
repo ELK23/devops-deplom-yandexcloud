@@ -21,6 +21,11 @@ variable "webhook_secret" {
 }
 
 variable "domain" {
-  description = "Base domain for ingress"
+  description = "Base domain for ingress (e.g., nip.io or custom domain)"
+  type        = string
+}
+
+variable "k8s_master_public_ip" {
+  description = "Public IP of the Kubernetes master node"
   type        = string
 }
