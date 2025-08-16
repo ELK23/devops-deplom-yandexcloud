@@ -1,8 +1,6 @@
 # devops-deplom-yandexcloud
 ---
 
-```markdown
-# Kubernetes Addons Deployment with Makefile
 
 This repository provides a **Makefile** that automates the deployment of:
 
@@ -106,8 +104,5 @@ This will:
 - Run `make monitoring-*` and `make atlantis-*` only **after the base Kubernetes cluster is deployed**.
 - Ingress rules only need to be set up **once per cluster** (`make ingress-rules`).
 - `terraform.tfvars` files are **auto-generated** but require **manual edits** for GitHub credentials.
-
----
-```
 
 ---
