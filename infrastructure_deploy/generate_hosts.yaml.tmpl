@@ -1,0 +1,41 @@
+all:
+  hosts:
+    master1:
+      ansible_host: ${K8S_MASTER_PUBLIC_IP}
+      ip: ${K8S_MASTER_PRIVATE_IP}
+      access_ip: ${K8S_MASTER_PRIVATE_IP}
+
+    worker1:
+      ansible_host: ${K8S_WORKER_B_IP}
+      ip: ${K8S_WORKER_B_IP}
+      access_ip: ${K8S_WORKER_B_IP}
+      ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q ubuntu@${K8S_MASTER_PUBLIC_IP}"'
+
+    worker2:
+      ansible_host: ${K8S_WORKER_D_IP}
+      ip: ${K8S_WORKER_D_IP}
+      access_ip: ${K8S_WORKER_D_IP}
+      ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q ubuntu@${K8S_MASTER_PUBLIC_IP}"'
+
+  children:
+    kube_control_plane:
+      hosts:
+        master1:
+
+    kube_node:
+      hosts:
+        worker1:
+        worker2:
+
+    etcd:
+      hosts:
+        master1:
+
+    k8s_cluster:
+      children:
+        kube_control_plane:
+        kube_node:
+
+    bastion:
+      hosts:
+        master1:
