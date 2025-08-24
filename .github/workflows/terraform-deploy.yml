@@ -1,0 +1,36 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_github_user: ${{ secrets.GITHUB_USER }}
+      TF_VAR_github_repo: ${{ secrets.GITHUB_REPO }}
+      TF_VAR_github_token: ${{ secrets.GITHUB_TOKEN }}
+      TF_VAR_github_secret: ${{ secrets.GITHUB_SECRET }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        working-directory: ./infrastructure_deploy
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ./infrastructure_deploy
+        run: terraform plan -var-file=terraform.tfvars
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./infrastructure_deploy
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
+
