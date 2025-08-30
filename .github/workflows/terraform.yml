@@ -20,8 +20,17 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Write YC SA key (for provider auth)
-        run: echo '${{ secrets.YC_KEY_JSON }}' > yc-key.json
+      - name: Write YC SA key (from base64) and validate
+        run: |
+          set -euo pipefail
+          echo '${{ secrets.YC_KEY_JSON_B64 }}' | base64 -d > yc-key.json
+          # Validate JSON (won't print contents)
+          jq -e . yc-key.json >/dev/null 2>&1 || { echo "YC_KEY_JSON_B64 decodes to invalid JSON"; exit 1; }
+          # Sanity checks
+          test -s yc-key.json || { echo "Decoded yc-key.json is empty"; exit 1; }
+          echo "yc-key.json size: $(wc -c < yc-key.json) bytes"
+          # Optional: check expected fields exist
+          jq -r '.service_account_id, .id' yc-key.json >/dev/null 2>&1 || { echo "Missing fields in key JSON"; exit 1; }
 
       - name: Terraform Init (remote state in Yandex Object Storage)
         run: |
