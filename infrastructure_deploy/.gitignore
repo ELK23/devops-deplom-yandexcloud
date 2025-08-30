@@ -1,3 +1,4 @@
 *.lock.hcl
 *.tfvars
 .terraform/
+yc-key.json
