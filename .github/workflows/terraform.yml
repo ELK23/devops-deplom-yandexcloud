@@ -90,6 +90,32 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
           AWS_EC2_METADATA_DISABLED: "true"
 
+
+      # 1) Start SSH agent with your private key
+      - name: Setup SSH (agent + known_hosts)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 2) Export Terraform outputs to env vars for later steps
+      - name: Export Terraform outputs to env
+        run: |
+          echo "K8S_MASTER_PUBLIC_IP=$(terraform output -raw k8s_master_public_ip)" >> $GITHUB_ENV
+          echo "K8S_MASTER_PRIVATE_IP=$(terraform output -raw k8s_master_private_ip)" >> $GITHUB_ENV
+          echo "K8S_WORKER_B_IP=$(terraform output -raw k8s_worker_b_ip)" >> $GITHUB_ENV
+          echo "K8S_WORKER_D_IP=$(terraform output -raw k8s_worker_d_ip)" >> $GITHUB_ENV
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+          AWS_EC2_METADATA_DISABLED: "true"
+
+      # Optional: add master to known_hosts to avoid interactive prompt
+      - name: Add master to known_hosts
+        run: |
+          ssh-keyscan -H "${{ env.K8S_MASTER_PUBLIC_IP }}" >> ~/.ssh/known_hosts
+
+
       # ---------------- DESTROY PATH ----------------
       - name: Terraform Destroy (stream logs)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'destroy'
