@@ -83,3 +83,35 @@ jobs:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
           AWS_EC2_METADATA_DISABLED: "true"
+
+
+  destroy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure_deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Write YC SA key
+        run: echo '${{ secrets.YC_KEY_JSON }}' > yc-key.json
+
+      - name: Terraform Init
+        run: terraform init
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+          AWS_EC2_METADATA_DISABLED: "true"
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve \
+          -var="cloud_id=${{ secrets.YC_CLOUD_ID }}" \
+          -var="folder_id=${{ secrets.YC_FOLDER_ID }}" \
+          -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+          AWS_EC2_METADATA_DISABLED: "true"
