@@ -142,6 +142,14 @@ jobs:
           echo "Failed to add host key for $MASTER" >&2
           exit 1
 
+      - name: Clone Kubespray
+        run: |
+          git clone --branch v2.24.1 https://github.com/kubernetes-sigs/kubespray.git ansible-kubespray
+          cd ansible-kubespray
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+
       # ---------------- DESTROY PATH ----------------
       - name: Terraform Destroy (stream logs)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'destroy'
