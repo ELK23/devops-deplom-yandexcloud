@@ -21,7 +21,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Write YC SA key (for provider auth)
-        run: echo '${{ secrets.YC_SA_JSON }}' > yc-key.json
+        run: echo '${{ secrets.YC_KEY_JSON }}' > yc-key.json
 
       - name: Terraform Init (remote state in Yandex Object Storage)
         run: terraform init
