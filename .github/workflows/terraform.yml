@@ -4,55 +4,74 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      mode:
-        description: Choose action
-        type: choice
-        options: [apply, destroy]
-        default: apply
-        required: true
-
-concurrency:
-  group: infra-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
-  apply:
-    # run on push, or manual dispatch with mode=apply
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'apply')
+  deploy:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: infrastructure_deploy
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
       - name: Write YC SA key (from base64) and validate
         run: |
           set -euo pipefail
           echo '${{ secrets.YC_KEY_JSON_B64 }}' | base64 -d > yc-key.json
-          jq -e . yc-key.json >/dev/null || { echo "YC_KEY_JSON_B64 invalid"; exit 1; }
+          # Validate JSON (won't print contents)
+          jq -e . yc-key.json >/dev/null 2>&1 || { echo "YC_KEY_JSON_B64 decodes to invalid JSON"; exit 1; }
+          # Sanity checks
+          test -s yc-key.json || { echo "Decoded yc-key.json is empty"; exit 1; }
+          echo "yc-key.json size: $(wc -c < yc-key.json) bytes"
+          # Optional: check expected fields exist
+          jq -r '.service_account_id, .id' yc-key.json >/dev/null 2>&1 || { echo "Missing fields in key JSON"; exit 1; }
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Terraform Init (remote state in Yandex Object Storage)
+        run: |
+          set -euo pipefail
+          terraform init -no-color 2>&1 | tee init.log
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
           YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
           AWS_EC2_METADATA_DISABLED: "true"
+          TF_LOG: INFO
+          TF_LOG_PATH: tf-init-debug.log
 
-      - name: Terraform Apply
+      - name: Terraform Apply (stream logs)
         run: |
-          terraform apply -auto-approve \
+          set -euo pipefail
+          terraform apply -auto-approve -no-color -input=false \
+            -parallelism=2 \
             -var="cloud_id=${{ secrets.YC_CLOUD_ID }}" \
             -var="folder_id=${{ secrets.YC_FOLDER_ID }}" \
-            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
+            -var="access_key=${{ secrets.YC_ACCESS_KEY }}" \
+            -var="secret_key=${{ secrets.YC_SECRET_KEY }}" \
+            -var="service_account_id=${{ secrets.YC_SERVICE_ACCOUNT_ID }}" \
+            -var="mysql_root_password=${{ secrets.MYSQL_ROOT_PASSWORD }}" \
+            2>&1 | tee apply.log
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
           YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
           AWS_EC2_METADATA_DISABLED: "true"
+          TF_LOG: INFO
+          TF_LOG_PATH: tf-apply-debug.log
+
+      - name: Show last 200 lines of apply log
+        if: always()
+        run: |
+          echo "===== tail -n 200 apply.log ====="
+          tail -n 200 apply.log || true
+          echo "===== tail -n 200 tf-apply-debug.log ====="
+          tail -n 200 tf-apply-debug.log || true
 
       - name: Show Outputs
         run: |
@@ -63,40 +82,4 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
-          AWS_EC2_METADATA_DISABLED: "true"
-
-  destroy:
-    # run only on manual dispatch with mode=destroy
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'destroy'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infrastructure_deploy
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-
-      - name: Write YC SA key (from base64) and validate
-        run: |
-          set -euo pipefail
-          echo '${{ secrets.YC_KEY_JSON_B64 }}' | base64 -d > yc-key.json
-          jq -e . yc-key.json >/dev/null || { echo "YC_KEY_JSON_B64 invalid"; exit 1; }
-
-      - name: Terraform Init
-        run: terraform init
-        env:
-          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
-          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
-          AWS_EC2_METADATA_DISABLED: "true"
-
-      - name: Terraform Destroy
-        run: terraform destroy -auto-approve \
-          -var="cloud_id=${{ secrets.YC_CLOUD_ID }}" \
-          -var="folder_id=${{ secrets.YC_FOLDER_ID }}" \
-          -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
-        env:
-          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
-          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
           AWS_EC2_METADATA_DISABLED: "true"
