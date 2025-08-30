@@ -79,3 +79,7 @@ jobs:
           echo "master_private_ip=$(terraform output -raw k8s_master_private_ip)"
           echo "worker_b_ip=$(terraform output -raw k8s_worker_b_ip)"
           echo "worker_d_ip=$(terraform output -raw k8s_worker_d_ip)"
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+          AWS_EC2_METADATA_DISABLED: "true"
