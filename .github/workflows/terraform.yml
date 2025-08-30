@@ -150,6 +150,16 @@ jobs:
           . venv/bin/activate
           pip install -r requirements.txt
 
+      - name: Render Kubespray inventory/hosts.yaml
+        run: |
+          mkdir -p ../ansible-kubespray/inventory/mycluster
+          K8S_MASTER_PUBLIC_IP="${{ env.K8S_MASTER_PUBLIC_IP }}" \
+          K8S_MASTER_PRIVATE_IP="${{ env.K8S_MASTER_PRIVATE_IP }}" \
+          K8S_WORKER_B_IP="${{ env.K8S_WORKER_B_IP }}" \
+          K8S_WORKER_D_IP="${{ env.K8S_WORKER_D_IP }}" \
+          envsubst < generate_hosts.yaml.tmpl \
+            > ../ansible-kubespray/inventory/mycluster/hosts.yaml
+
       # ---------------- DESTROY PATH ----------------
       - name: Terraform Destroy (stream logs)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'destroy'
