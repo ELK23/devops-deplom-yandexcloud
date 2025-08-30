@@ -10,4 +10,11 @@ variable "mysql_root_password" {
 
 variable "image_id" {
   description = "ID публичного образа (например, Ubuntu 22.04)"
+  default = "fd8jfh73rvks3qlqp3ck"
+}
+
+variable "ssh_public_key" {
+  description = "Public SSH key for ubuntu user"
+  type        = string
+  default     = ""
 }

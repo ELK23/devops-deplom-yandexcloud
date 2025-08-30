@@ -4,11 +4,6 @@ terraform {
       source = "yandex-cloud/yandex"
     }
   }
-#export ACCESS_KEY="<идентификатор_ключа>"
-#export SECRET_KEY="<секретный_ключ>"
-
-  #terraform init -backend-config="access_key=$ACCESS_KEY" -backend-config="secret_key=$SECRET_KEY"
-  
    backend "s3" {
     endpoints = {
       s3 = "https://storage.yandexcloud.net"
@@ -28,7 +23,7 @@ terraform {
 
 
 provider "yandex" {
-  service_account_key_file = "/home/veer/key.json"
+  #service_account_key_file = "/home/veer/key.json"
   cloud_id                 = var.cloud_id
   folder_id                = var.folder_id
   zone                     = "ru-central1-a"

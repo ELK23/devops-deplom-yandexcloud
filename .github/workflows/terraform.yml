@@ -1,0 +1,48 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infrastructure_deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Write YC SA key (for provider auth)
+        run: echo '${{ secrets.YC_SA_JSON }}' > yc-key.json
+
+      - name: Terraform Init (remote state in Yandex Object Storage)
+        run: terraform init
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+
+      - name: Terraform Apply
+        # add -auto-approve if you want non-interactive applies
+        run: |
+          terraform apply \
+            -var="cloud_id=${{ secrets.YC_CLOUD_ID }}" \
+            -var="folder_id=${{ secrets.YC_FOLDER_ID }}" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        env:
+          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+
+      - name: Show Outputs
+        run: |
+          echo "master_public_ip=$(terraform output -raw k8s_master_public_ip)"
+          echo "master_private_ip=$(terraform output -raw k8s_master_private_ip)"
+          echo "worker_b_ip=$(terraform output -raw k8s_worker_b_ip)"
+          echo "worker_d_ip=$(terraform output -raw k8s_worker_d_ip)"
