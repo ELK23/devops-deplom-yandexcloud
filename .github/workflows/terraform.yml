@@ -24,25 +24,41 @@ jobs:
         run: echo '${{ secrets.YC_KEY_JSON }}' > yc-key.json
 
       - name: Terraform Init (remote state in Yandex Object Storage)
-        run: terraform init
+        run: |
+          set -euo pipefail
+          terraform init -no-color 2>&1 | tee init.log
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
           YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
           AWS_EC2_METADATA_DISABLED: "true"
+          TF_LOG: INFO
+          TF_LOG_PATH: tf-init-debug.log
 
-      - name: Terraform Apply
-        # add -auto-approve if you want non-interactive applies
+      - name: Terraform Apply (stream logs)
         run: |
-          terraform apply -auto-approve \
+          set -euo pipefail
+          terraform apply -auto-approve -no-color -input=false \
+            -parallelism=2 \
             -var="cloud_id=${{ secrets.YC_CLOUD_ID }}" \
             -var="folder_id=${{ secrets.YC_FOLDER_ID }}" \
-            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
+            2>&1 | tee apply.log
         env:
-              AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
-              AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
-              YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
-              AWS_EC2_METADATA_DISABLED: "true"
+          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+          YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+          AWS_EC2_METADATA_DISABLED: "true"
+          TF_LOG: INFO
+          TF_LOG_PATH: tf-apply-debug.log
+
+      - name: Show last 200 lines of apply log
+        if: always()
+        run: |
+          echo "===== tail -n 200 apply.log ====="
+          tail -n 200 apply.log || true
+          echo "===== tail -n 200 tf-apply-debug.log ====="
+          tail -n 200 tf-apply-debug.log || true
 
       - name: Show Outputs
         run: |
