@@ -91,74 +91,74 @@ jobs:
           AWS_EC2_METADATA_DISABLED: "true"
 
 
-      # 1) Start SSH agent with your private key
-      - name: Setup SSH (agent + known_hosts)
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.SSH_PRIVATE_KEY }}
+      # # 1) Start SSH agent with your private key
+      # - name: Setup SSH (agent + known_hosts)
+      #   uses: webfactory/ssh-agent@v0.9.0
+      #   with:
+      #     ssh-private-key: |
+      #       ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 2) Export Terraform outputs to env vars for later steps
-      - name: Export Terraform outputs to env
-        run: |
-          echo "K8S_MASTER_PUBLIC_IP=$(terraform output -raw k8s_master_public_ip)" >> $GITHUB_ENV
-          echo "K8S_MASTER_PRIVATE_IP=$(terraform output -raw k8s_master_private_ip)" >> $GITHUB_ENV
-          echo "K8S_WORKER_B_IP=$(terraform output -raw k8s_worker_b_ip)" >> $GITHUB_ENV
-          echo "K8S_WORKER_D_IP=$(terraform output -raw k8s_worker_d_ip)" >> $GITHUB_ENV
-        env:
-          AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
-          AWS_EC2_METADATA_DISABLED: "true"
+      # # 2) Export Terraform outputs to env vars for later steps
+      # - name: Export Terraform outputs to env
+      #   run: |
+      #     echo "K8S_MASTER_PUBLIC_IP=$(terraform output -raw k8s_master_public_ip)" >> $GITHUB_ENV
+      #     echo "K8S_MASTER_PRIVATE_IP=$(terraform output -raw k8s_master_private_ip)" >> $GITHUB_ENV
+      #     echo "K8S_WORKER_B_IP=$(terraform output -raw k8s_worker_b_ip)" >> $GITHUB_ENV
+      #     echo "K8S_WORKER_D_IP=$(terraform output -raw k8s_worker_d_ip)" >> $GITHUB_ENV
+      #   env:
+      #     AWS_ACCESS_KEY_ID:     ${{ secrets.YC_ACCESS_KEY }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+      #     AWS_EC2_METADATA_DISABLED: "true"
 
-      - name: Wait for SSH on master
-        run: |
-          set -euo pipefail
-          MASTER="${{ env.K8S_MASTER_PUBLIC_IP }}"
-          echo "Waiting for SSH on $MASTER:22 ..."
-          for i in {1..30}; do
-            if timeout 5 bash -lc "echo >/dev/tcp/$MASTER/22" 2>/dev/null; then
-              echo "SSH is open."
-              exit 0
-            fi
-            echo "[$i/30] still not ready, sleeping 10s..."
-            sleep 10
-          done
-          echo "Timeout waiting for SSH on $MASTER" >&2
-          exit 1
+      # - name: Wait for SSH on master
+      #   run: |
+      #     set -euo pipefail
+      #     MASTER="${{ env.K8S_MASTER_PUBLIC_IP }}"
+      #     echo "Waiting for SSH on $MASTER:22 ..."
+      #     for i in {1..30}; do
+      #       if timeout 5 bash -lc "echo >/dev/tcp/$MASTER/22" 2>/dev/null; then
+      #         echo "SSH is open."
+      #         exit 0
+      #       fi
+      #       echo "[$i/30] still not ready, sleeping 10s..."
+      #       sleep 10
+      #     done
+      #     echo "Timeout waiting for SSH on $MASTER" >&2
+      #     exit 1
 
-      # Add the master host key with retries
-      - name: Add master to known_hosts (retry)
-        run: |
-          set -euo pipefail
-          MASTER="${{ env.K8S_MASTER_PUBLIC_IP }}"
-          for i in {1..10}; do
-            if ssh-keyscan -T 10 -H "$MASTER" >> ~/.ssh/known_hosts 2>/dev/null; then
-              echo "Host key added."
-              exit 0
-            fi
-            echo "ssh-keyscan attempt $i failed, sleeping 6s..."
-            sleep 6
-          done
-          echo "Failed to add host key for $MASTER" >&2
-          exit 1
+      # # Add the master host key with retries
+      # - name: Add master to known_hosts (retry)
+      #   run: |
+      #     set -euo pipefail
+      #     MASTER="${{ env.K8S_MASTER_PUBLIC_IP }}"
+      #     for i in {1..10}; do
+      #       if ssh-keyscan -T 10 -H "$MASTER" >> ~/.ssh/known_hosts 2>/dev/null; then
+      #         echo "Host key added."
+      #         exit 0
+      #       fi
+      #       echo "ssh-keyscan attempt $i failed, sleeping 6s..."
+      #       sleep 6
+      #     done
+      #     echo "Failed to add host key for $MASTER" >&2
+      #     exit 1
 
-      - name: Clone Kubespray
-        run: |
-          git clone --branch v2.24.1 https://github.com/kubernetes-sigs/kubespray.git ansible-kubespray
-          cd ansible-kubespray
-          python3 -m venv venv
-          . venv/bin/activate
-          pip install -r requirements.txt
+      # - name: Clone Kubespray
+      #   run: |
+      #     git clone --branch v2.24.1 https://github.com/kubernetes-sigs/kubespray.git ansible-kubespray
+      #     cd ansible-kubespray
+      #     python3 -m venv venv
+      #     . venv/bin/activate
+      #     pip install -r requirements.txt
 
-      - name: Render Kubespray inventory/hosts.yaml
-        run: |
-          mkdir -p ../ansible-kubespray/inventory/mycluster
-          K8S_MASTER_PUBLIC_IP="${{ env.K8S_MASTER_PUBLIC_IP }}" \
-          K8S_MASTER_PRIVATE_IP="${{ env.K8S_MASTER_PRIVATE_IP }}" \
-          K8S_WORKER_B_IP="${{ env.K8S_WORKER_B_IP }}" \
-          K8S_WORKER_D_IP="${{ env.K8S_WORKER_D_IP }}" \
-          envsubst < generate_hosts.yaml.tmpl \
-            > ../ansible-kubespray/inventory/mycluster/hosts.yaml
+      # - name: Render Kubespray inventory/hosts.yaml
+      #   run: |
+      #     mkdir -p ../ansible-kubespray/inventory/mycluster
+      #     K8S_MASTER_PUBLIC_IP="${{ env.K8S_MASTER_PUBLIC_IP }}" \
+      #     K8S_MASTER_PRIVATE_IP="${{ env.K8S_MASTER_PRIVATE_IP }}" \
+      #     K8S_WORKER_B_IP="${{ env.K8S_WORKER_B_IP }}" \
+      #     K8S_WORKER_D_IP="${{ env.K8S_WORKER_D_IP }}" \
+      #     envsubst < generate_hosts.yaml.tmpl \
+      #       > ../ansible-kubespray/inventory/mycluster/hosts.yaml
 
       # ---------------- DESTROY PATH ----------------
       - name: Terraform Destroy (stream logs)

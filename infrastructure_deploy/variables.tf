@@ -9,7 +9,7 @@ variable "mysql_root_password" {
 }
 
 variable "image_id" {
-  description = "ID публичного образа (например, Ubuntu 22.04)"
+  description = "image ID"
   default = "fd8jfh73rvks3qlqp3ck"
 }
 
